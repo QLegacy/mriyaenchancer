@@ -2,7 +2,7 @@
 // @name         Mriya Enhancer (Material You) v6
 // @namespace    http://tampermonkey.net/
 // @version      6.0
-// @description  Блокировка, Ctrl+V, Компактные страницы, Спойлеры для фото и кастомный UI
+// @description  Черговий покращуючий скрипт для соцмережі Мрія
 // @author       You
 // @match        *://mriya.cc/*
 // @match        *://mriya.ct.ws/*
@@ -22,7 +22,7 @@
         return;
     }
 
-    // --- 2. КОНФИГУРАЦИЯ ---
+    // --- 2. КОНФІГУРАЦІЯ ---
     const M3 = {
         primary: '#D0BCFF',
         surface: '#1C1B1F',
@@ -41,17 +41,17 @@
         extDarkTheme: true,
         siteDarkTheme: false,
         ctrlVPaste: true,
-        compactPagination: true, // Сжать страницы
-        hideImages: false,       // Скрывать фото под спойлер
-        prettyDates: true,       // Нормальная дата
-        hideAvatars: false,      // Скрыть аватарки
-        longInputs: true,        // Удлинять поля ввода
+        compactPagination: true, // Стиснути сторінки
+        hideImages: false,       // Приховувати фото під спойлер
+        prettyDates: true,       // Нормальна дата
+        hideAvatars: false,      // Приховати аватарки
+        longInputs: true,        // Подовжити поля вводу
         rowButtons: true         // Кнопки в один ряд
     });
 
     function save() { GM_setValue('mriya_enchancer_v6', config); }
 
-    // --- 3. ФУНКЦИИ ОБРАБОТКИ ---
+    // --- 3. ФУНКЦІЇ ОБРОБКИ ---
 
     function applyEverything() {
         let styleTag = document.getElementById('mriya-styles') || document.createElement('style');
@@ -93,7 +93,7 @@
         styleTag.innerHTML = css;
         if (!styleTag.parentNode) document.documentElement.appendChild(styleTag);
 
-        // Логика DOM элементов
+        // Логіка DOM елементів
         document.addEventListener('DOMContentLoaded', () => {
             if (config.rowButtons) wrapButtons();
             if (config.compactPagination) handlePagination();
@@ -103,7 +103,7 @@
         });
     }
 
-    // Сместить кнопки в один ряд
+    // Змістити кнопки в один ряд
     function wrapButtons() {
         const form = document.getElementById('postForm');
         if (!form || form.querySelector('.actions-row')) return;
@@ -123,7 +123,7 @@
         }
     }
 
-    // Сжать пагинацию
+    // Стиснути пагінацію
     function handlePagination() {
         const pag = document.querySelector('.pagination');
         if (!pag) return;
@@ -148,24 +148,24 @@
         lastLink.style.display = 'inline-block';
     }
 
-    // Красивые даты
+    // Гарні дати
     function handleDates() {
-        const months = ["Січня", "Лютого", "Березня", "Квітня", "Травня", "Червня", "Липня", "Серпня", "Вересня", "Жовтня", "Листопада", "Грудня"];
+        const months = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
         document.querySelectorAll('.post-time').forEach(el => {
             const raw = el.innerText.trim(); // 2026-02-17 17:05:39
             const match = raw.match(/(\d{4})-(\d{2})-(\d{2})\s(\d{2}:\d{2}:\d{2})/);
             if (match) {
                 const [_, y, m, d, t] = match;
-                el.innerText = `${parseInt(d)} ${months[parseInt(m)-1]} ${y} в ${t}`;
+                el.innerText = `${parseInt(d)} ${months[parseInt(m)-1]} ${y} о ${t}`;
             }
         });
     }
 
-    // Фото под спойлер
+    // Фото під спойлер
     function handleImages() {
         document.querySelectorAll('.post-images img').forEach(img => {
             const originalSrc = img.src;
-            img.style.display = 'none'; // Скрываем саму картинку сразу
+            img.style.display = 'none'; 
 
             const spoiler = document.createElement('div');
             spoiler.style = "background: #333; color: #fff; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; margin-top: 5px; font-size: 13px;";
@@ -179,7 +179,7 @@
                 spoiler.remove();
             };
 
-            img.src = ''; // Останавливаем загрузку до клика
+            img.src = ''; 
         });
     }
 
@@ -236,7 +236,7 @@
         }
     });
 
-    // --- 5. ИНТЕРФЕЙС ---
+    // --- 5. ІНТЕРФЕЙС ---
     function showUI() {
         if (document.getElementById('m3-root')) return;
         const root = document.createElement('div');
@@ -247,12 +247,12 @@
         root.innerHTML = `
             <div id="m3-header"><span id="m3-title">Mriya Enhancer 6.0</span><button id="m3-close">✕</button></div>
             <div id="m3-tabs">
-                <div class="m3-tab active" data-tab="main">Главная</div>
-                <div class="m3-tab" data-tab="settings">Опции</div>
+                <div class="m3-tab active" data-tab="main">Головна</div>
+                <div class="m3-tab" data-tab="settings">Опції</div>
                 <div class="m3-tab" data-tab="block">ЧС</div>
             </div>
             <div id="m3-body"></div>
-            <div id="m3-footer"><button id="m3-apply">Сохранить и Обновить</button></div>
+            <div id="m3-footer"><button id="m3-apply">Зберегти та оновити</button></div>
         `;
         document.body.appendChild(root);
         switchTab('main');
@@ -275,21 +275,21 @@
         if (tab === 'main') {
             body.innerHTML = `
                 <div class="m3-field"><label>Шрифт</label><input type="text" id="fnt" value="${config.font}" placeholder="Arial, sans-serif"></div>
-                <div class="m3-field"><label>Custom CSS</label><textarea id="css-c" rows="2"></textarea><button id="add-css">Добавить</button></div>
+                <div class="m3-field"><label>Власний CSS</label><textarea id="css-c" rows="2"></textarea><button id="add-css">Додати</button></div>
                 <div id="css-list"></div>
             `;
             document.getElementById('fnt').oninput = (e) => { config.font = e.target.value; save(); };
         } else if (tab === 'settings') {
             body.innerHTML = `
                 <div class="m3-opt"><label><input type="checkbox" id="opt-row" ${config.rowButtons?'checked':''}> Кнопки в один ряд</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-pag" ${config.compactPagination?'checked':''}> Сжать пагинацию (10 + ...)</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-img" ${config.hideImages?'checked':''}> Фото под спойлер</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-date" ${config.prettyDates?'checked':''}> Красивая дата</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-ava" ${config.hideAvatars?'checked':''}> Скрыть аватарки</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-long" ${config.longInputs?'checked':''}> Удлинять поля ввода</label></div>
+                <div class="m3-opt"><label><input type="checkbox" id="opt-pag" ${config.compactPagination?'checked':''}> Стиснути пагінацію (10 + ...)</label></div>
+                <div class="m3-opt"><label><input type="checkbox" id="opt-img" ${config.hideImages?'checked':''}> Фото під спойлер</label></div>
+                <div class="m3-opt"><label><input type="checkbox" id="opt-date" ${config.prettyDates?'checked':''}> Гарна дата</label></div>
+                <div class="m3-opt"><label><input type="checkbox" id="opt-ava" ${config.hideAvatars?'checked':''}> Приховати аватарки</label></div>
+                <div class="m3-opt"><label><input type="checkbox" id="opt-long" ${config.longInputs?'checked':''}> Подовжити поля вводу</label></div>
                 <hr>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-sdark" ${config.siteDarkTheme?'checked':''}> Темная тема сайта</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-edark" ${config.extDarkTheme?'checked':''}> Темная тема меню</label></div>
+                <div class="m3-opt"><label><input type="checkbox" id="opt-sdark" ${config.siteDarkTheme?'checked':''}> Темна тема сайту</label></div>
+                <div class="m3-opt"><label><input type="checkbox" id="opt-edark" ${config.extDarkTheme?'checked':''}> Темна тема меню</label></div>
             `;
             const bind = (id, key) => {
                 document.getElementById(id).onchange = (e) => { config[key] = e.target.checked; save(); };
@@ -304,7 +304,7 @@
             bind('opt-edark', 'extDarkTheme');
 
         } else if (tab === 'block') {
-            body.innerHTML = `<label>Заблокированные:</label><div id="block-list"></div>`;
+            body.innerHTML = `<label>Заблоковані користувачі:</label><div id="block-list"></div>`;
             const blist = document.getElementById('block-list');
             config.blockedUsers.forEach(user => {
                 const item = document.createElement('div');
