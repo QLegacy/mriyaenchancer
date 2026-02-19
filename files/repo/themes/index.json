@@ -1,0 +1,14 @@
+[
+  {
+    "id": "theme1",
+    "name": "Neon Night",
+    "version": "1.0",
+    "css_url": "https://raw.githubusercontent.com/QLegacy/mriyaenchancer/main/files/repo/themes/neon.css"
+  },
+  {
+    "id": "theme2",
+    "name": "Retro Mriya",
+    "version": "2.1",
+    "css_url": "https://raw.githubusercontent.com/QLegacy/mriyaenchancer/main/files/repo/themes/retro.css"
+  }
+]
