@@ -1,351 +1,370 @@
 // ==UserScript==
-// @name         Mriya Enhancer (Material You) v6
+// @name         Mriya Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      6.0
-// @description  Черговий покращуючий скрипт для соцмережі Мрія
-// @author       You
+// @version      9.0
+// @description  A mod for social network Mriya.
+// @author       QuadLegacy
 // @match        *://mriya.cc/*
 // @match        *://mriya.ct.ws/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @connect      raw.githubusercontent.com
 // @run-at       document-start
 // ==/UserScript==
 
 (function() {
-    'use strict';
+'use strict';
 
-    // --- 1. РЕДИРЕКТ ---
-    if (location.hostname === 'mriya.ct.ws') {
-        location.replace("http://mriya.cc" + location.pathname + location.search);
-        return;
-    }
+const REPO_URL = "https://raw.githubusercontent.com/QLegacy/mriyaenchancer/main/files/repo/themes/index.json";
 
-    // --- 2. КОНФІГУРАЦІЯ ---
-    const M3 = {
-        primary: '#D0BCFF',
-        surface: '#1C1B1F',
-        surfaceLight: '#F3EDF7',
-        onSurface: '#E6E1E5',
-        onSurfaceLight: '#1C1B1F',
-        error: '#F2B8B5'
+// --- 1. КОНФІГУРАЦІЯ ---
+let defaultConfig = {
+    theme: 'aero',
+    customThemeId: null,
+    installedThemes: [],
+    font: 'Segoe UI, Tahoma, sans-serif',
+    cssGroups: [],
+    blockedUsers: [],
+    pos: { x: 100, y: 100 },
+    siteDarkTheme: true,
+    compactPagination: true,
+    hideImages: false,
+    prettyDates: true,
+    hideAvatars: false,
+    longInputs: true,
+    rowButtons: true
+};
+
+let savedConfig = GM_getValue('mriya_enchancer_v8', {});
+let config = { ...defaultConfig, ...savedConfig };
+
+if (!Array.isArray(config.installedThemes)) config.installedThemes = [];
+if (!Array.isArray(config.cssGroups)) config.cssGroups = [];
+if (!Array.isArray(config.blockedUsers)) config.blockedUsers = [];
+
+function save() { GM_setValue('mriya_enchancer_v8', config); }
+
+// --- 2. СТИЛІ ТЕМ ---
+const getUIThemeCSS = () => {
+    const isDark = config.siteDarkTheme;
+    const themes = {
+        aero: `
+            #m3-root { background: ${isDark ? 'linear-gradient(to bottom, rgba(60,60,60,0.85), rgba(30,30,30,0.4))' : 'linear-gradient(to bottom, rgba(200,210,225,0.8), rgba(255,255,255,0.2))'}; backdrop-filter: blur(15px); padding: 0 8px 9px 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+            #m3-header { color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+            #m3-body { background: ${isDark ? '#121212' : '#fff'}; color: ${isDark ? '#eee' : '#000'}; border: 1px solid #888; }
+            .win7-btn:hover { background: rgba(255,255,255,0.2); }
+            .btn-close:hover { background: #e81123 !important; }
+        `,
+        material: `
+            #m3-root { background: ${isDark?'#1C1B1F':'#F7F2FA'}; border-radius: 28px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); color: ${isDark?'#fff':'#000'}; }
+            #m3-tabs { background: ${isDark?'#49454F':'#EADDFF'}; border-radius: 16px; padding: 4px; }
+            .m3-tab.active { background: ${isDark?'#D0BCFF':'#6750A4'}; color: ${isDark?'#381E72':'#fff'}; border-radius: 12px; }
+            #m3-body { background: ${isDark?'#2B2930':'#fff'}; border: none; border-radius: 12px; }
+        `,
+        liquid: `
+            #m3-root { background: rgba(20,20,20,0.3); backdrop-filter: blur(30px); border-radius: 20px; border: 1px solid #00f2ff; color: #00f2ff; }
+            #m3-header { color: #00f2ff; text-transform: uppercase; letter-spacing: 1px; }
+            #m3-body { background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #00f2ff; }
+        `
     };
+    return themes[config.theme] || themes.aero;
+};
 
-    let config = GM_getValue('mriya_enchancer_v6', {
-        font: '',
-        cssGroups: [],
-        jsGroups: [],
-        blockedUsers: [],
-        pos: { x: 50, y: 50 },
-        extDarkTheme: true,
-        siteDarkTheme: false,
-        ctrlVPaste: true,
-        compactPagination: true, // Стиснути сторінки
-        hideImages: false,       // Приховувати фото під спойлер
-        prettyDates: true,       // Нормальна дата
-        hideAvatars: false,      // Приховати аватарки
-        longInputs: true,        // Подовжити поля вводу
-        rowButtons: true         // Кнопки в один ряд
-    });
+// --- 3. БАЗОВІ СТИЛІ ---
+const baseStyles = `
+    #m3-root { position: fixed; width: 560px; z-index: 1000000; display: flex; flex-direction: column; font-family: 'Segoe UI', sans-serif; }
+    #m3-header { display: flex; align-items: center; position: relative; cursor: move; padding: 0 10px; font-size: 13px; font-weight: bold; min-height: 38px; }
 
-    function save() { GM_setValue('mriya_enchancer_v6', config); }
+    .window-controls { position: absolute; top: 0; right: 0; display: flex; height: 30px; z-index: 1000001; }
+    .win7-btn { width: 45px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; transition: 0.2s; position: relative; }
+    .btn-min::before { content: ""; width: 10px; height: 2px; background: currentColor; margin-top: 10px; }
+    .btn-close::before, .btn-close::after { content: ""; position: absolute; width: 14px; height: 2px; background: currentColor; transform: rotate(45deg); }
+    .btn-close::after { transform: rotate(-45deg); }
 
-    // --- 3. ФУНКЦІЇ ОБРОБКИ ---
+    #m3-tabs { display: flex; gap: 4px; padding: 0 10px; }
+    .m3-tab { padding: 8px 12px; font-size: 11px; cursor: pointer; opacity: 0.7; border-top-left-radius: 4px; border-top-right-radius: 4px; }
+    .m3-tab.active { opacity: 1; font-weight: bold; }
+    #m3-body { padding: 15px; height: 380px; overflow-y: auto; margin: 10px; border-radius: 6px; box-sizing: border-box; }
+    .m3-footer { padding: 10px; text-align: right; }
+    #m3-apply { padding: 8px 20px; cursor: pointer; border-radius: 4px; border: 1px solid #666; font-weight: bold; }
 
-    function applyEverything() {
-        let styleTag = document.getElementById('mriya-styles') || document.createElement('style');
-        styleTag.id = 'mriya-styles';
+    .m3-opt { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; }
+    .group-item { background: rgba(128,128,128,0.1); padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid rgba(128,128,128,0.2); }
+    textarea, input[type="text"] { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.05); color: inherit; border: 1px solid #666; padding: 5px; }
+    .m3-actions-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 
-        let css = config.font ? `* { font-family: "${config.font}", sans-serif !important; }\n` : '';
+    /* Про мод */
+    .about-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(128,128,128,0.1); border-radius: 8px; margin-bottom: 8px; text-decoration: none; color: inherit; transition: 0.2s; }
+    .about-item:hover { background: rgba(128,128,128,0.2); transform: translateX(5px); }
+    .about-item img { width: 24px; height: 24px; object-fit: contain; }
+    .img-inv { filter: invert(1); }
+`;
 
-        if (config.siteDarkTheme) {
-            css += `
-                body, .site-wrap, .container { background: #1a1a1a !important; color: #e0e0e0 !important; }
-                .post { background: #242424 !important; border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #333; color: #fff !important; }
-                .post p, .post b, .post span { color: #fff !important; }
-                .header, .nav-bar { background: #121212 !important; border-bottom: 1px solid #333 !important; }
-                a { color: #bb86fc !important; }
-            `;
-        }
-
-        if (config.hideAvatars) {
-            css += `.avatar { display: none !important; }`;
-        }
-
-        if (config.longInputs) {
-            css += `
-                #contentField { min-height: 150px !important; width: 100% !important; box-sizing: border-box; }
-                input[type="text"] { width: 100% !important; padding: 8px; box-sizing: border-box; }
-            `;
-        }
-
-        if (config.rowButtons) {
-            css += `
-                #postForm { display: flex; flex-direction: column; gap: 8px; }
-                #postForm .actions-row { display: flex; gap: 4px; align-items: center; width: 100%; }
-                #emoji-button { white-space: nowrap; }
-                #imageInput { flex-grow: 1; overflow: hidden; }
-                #publishBtn { white-space: nowrap; padding: 5px 20px; font-weight: bold; }
-            `;
-        }
-
-        styleTag.innerHTML = css;
-        if (!styleTag.parentNode) document.documentElement.appendChild(styleTag);
-
-        // Логіка DOM елементів
-        document.addEventListener('DOMContentLoaded', () => {
-            if (config.rowButtons) wrapButtons();
-            if (config.compactPagination) handlePagination();
-            if (config.prettyDates) handleDates();
-            if (config.hideImages) handleImages();
-            applyBlocking();
+// --- 4. ДОПОМІЖНІ ФУНКЦІЇ ---
+function fetchRemote(url) {
+    return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+            method: "GET", url: url + "?t=" + Date.now(),
+            onload: (res) => resolve(res.responseText),
+            onerror: (err) => reject(err)
         });
-    }
+    });
+}
 
-    // Змістити кнопки в один ряд
-    function wrapButtons() {
-        const form = document.getElementById('postForm');
-        if (!form || form.querySelector('.actions-row')) return;
+function handlePagination() {
+    const pag = document.querySelector('.pagination');
+    if (!pag) return;
+    const links = Array.from(pag.querySelectorAll('.page-btn'));
+    if (links.length <= 10) return;
+    const moreBtn = document.createElement('button');
+    moreBtn.innerText = '...'; moreBtn.className = 'page-btn';
+    moreBtn.onclick = (e) => { e.preventDefault(); links.forEach(l => l.style.display = 'inline-block'); moreBtn.remove(); };
+    links.forEach((l, idx) => { if(idx > 5 && idx < links.length - 2) l.style.display = 'none'; });
+    pag.insertBefore(moreBtn, links[links.length-1]);
+}
 
-        const row = document.createElement('div');
-        row.className = 'actions-row';
-
-        const btnEmoji = document.getElementById('emoji-button');
-        const inputImg = document.getElementById('imageInput');
-        const btnPub = document.getElementById('publishBtn');
-
-        if (btnEmoji && inputImg && btnPub) {
-            btnEmoji.parentNode.insertBefore(row, btnEmoji);
-            row.appendChild(btnEmoji);
-            row.appendChild(inputImg);
-            row.appendChild(btnPub);
+function applyPrettyDates() {
+    if (!config.prettyDates) return;
+    const months = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
+    document.querySelectorAll('.post-date, .comment-date, span').forEach(el => {
+        if (el.children.length > 0) return;
+        let txt = el.innerText;
+        let match = txt.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+        if (match) {
+            let mIdx = parseInt(match[2]) - 1;
+            if (months[mIdx]) {
+                el.innerText = txt.replace(match[0], `${parseInt(match[1])} ${months[mIdx]} ${match[3]}`);
+            }
         }
+    });
+}
+
+function wrapButtons() {
+    const form = document.getElementById('postForm');
+    if (!form || form.querySelector('.m3-actions-row')) return;
+    const row = document.createElement('div');
+    row.className = 'm3-actions-row';
+    const bE = document.getElementById('emoji-button'), iI = document.getElementById('imageInput'), bP = document.getElementById('publishBtn');
+    if (bE && iI && bP) {
+        bE.parentNode.insertBefore(row, bE);
+        row.appendChild(bE); row.appendChild(iI); row.appendChild(bP);
     }
+}
 
-    // Стиснути пагінацію
-    function handlePagination() {
-        const pag = document.querySelector('.pagination');
-        if (!pag) return;
-        const links = Array.from(pag.querySelectorAll('.page-btn'));
-        if (links.length <= 12) return;
-
-        const firstBatch = links.slice(0, 10);
-        const lastLink = links[links.length - 1];
-
-        const moreBtn = document.createElement('button');
-        moreBtn.innerText = '...';
-        moreBtn.className = 'page-btn';
-        moreBtn.onclick = (e) => {
-            e.preventDefault();
-            links.forEach(l => l.style.display = 'inline-block');
-            moreBtn.remove();
+function makeDraggable(el) {
+    const h = document.getElementById('m3-header');
+    h.onmousedown = (e) => {
+        if (e.target.closest('.window-controls')) return;
+        let nx = e.clientX, ny = e.clientY;
+        document.onmousemove = (ev) => {
+            let ox = nx - ev.clientX, oy = ny - ev.clientY;
+            nx = ev.clientX; ny = ev.clientY;
+            el.style.top = (el.offsetTop - oy) + "px"; el.style.left = (el.offsetLeft - ox) + "px";
         };
+        document.onmouseup = () => { document.onmousemove = null; config.pos = {x: el.offsetLeft, y: el.offsetTop}; save(); };
+    };
+}
 
-        links.forEach(l => l.style.display = 'none');
-        firstBatch.forEach(l => l.style.display = 'inline-block');
-        pag.insertBefore(moreBtn, lastLink);
-        lastLink.style.display = 'inline-block';
-    }
+// --- 5. МЕНЕДЖЕР UI ---
+function showUI() {
+    if (document.getElementById('m3-root')) return;
+    GM_addStyle(baseStyles + getUIThemeCSS());
 
-    // Гарні дати
-    function handleDates() {
-        const months = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
-        document.querySelectorAll('.post-time').forEach(el => {
-            const raw = el.innerText.trim(); // 2026-02-17 17:05:39
-            const match = raw.match(/(\d{4})-(\d{2})-(\d{2})\s(\d{2}:\d{2}:\d{2})/);
-            if (match) {
-                const [_, y, m, d, t] = match;
-                el.innerText = `${parseInt(d)} ${months[parseInt(m)-1]} ${y} о ${t}`;
-            }
-        });
-    }
+    const root = document.createElement('div');
+    root.id = 'm3-root';
+    root.style.left = config.pos.x + 'px';
+    root.style.top = config.pos.y + 'px';
 
-    // Фото під спойлер
-    function handleImages() {
-        document.querySelectorAll('.post-images img').forEach(img => {
-            const originalSrc = img.src;
-            img.style.display = 'none'; 
-
-            const spoiler = document.createElement('div');
-            spoiler.style = "background: #333; color: #fff; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; margin-top: 5px; font-size: 13px;";
-            spoiler.innerText = "Показати фото";
-
-            img.parentNode.insertBefore(spoiler, img);
-
-            spoiler.onclick = () => {
-                img.style.display = 'block';
-                img.src = originalSrc;
-                spoiler.remove();
-            };
-
-            img.src = ''; 
-        });
-    }
-
-    function blockUser(username) {
-        if (!username) return;
-        if (!config.blockedUsers.includes(username)) {
-            config.blockedUsers.push(username);
-            save();
-            location.reload();
-        }
-    }
-
-    function unblockUser(username) {
-        config.blockedUsers = config.blockedUsers.filter(u => u !== username);
-        save();
-        location.reload();
-    }
-
-    function applyBlocking() {
-        document.querySelectorAll('.post').forEach(post => {
-            const authorNode = post.querySelector('b a');
-            if (authorNode) {
-                const username = authorNode.innerText.trim();
-                if (config.blockedUsers.includes(username)) {
-                    post.style.display = 'none';
-                }
-                if (!post.querySelector('.m3-block-link')) {
-                    const blockLink = document.createElement('span');
-                    blockLink.className = 'm3-block-link';
-                    blockLink.innerText = ' [Блок]';
-                    blockLink.style = "font-size: 10px; cursor: pointer; color: gray; margin-left: 5px;";
-                    blockLink.onclick = (e) => {
-                        if (confirm(`Заблокувати ${username}?`)) blockUser(username);
-                    };
-                    authorNode.parentNode.appendChild(blockLink);
-                }
-            }
-        });
-    }
-
-    // --- 4. CTRL + V ---
-    window.addEventListener('paste', (e) => {
-        if (!config.ctrlVPaste) return;
-        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-        for (let item of items) {
-            if (item.kind === 'file' && item.type.startsWith('image/')) {
-                const fileInput = document.getElementById('imageInput');
-                if (fileInput) {
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(item.getAsFile());
-                    fileInput.files = dataTransfer.files;
-                }
-            }
-        }
-    });
-
-    // --- 5. ІНТЕРФЕЙС ---
-    function showUI() {
-        if (document.getElementById('m3-root')) return;
-        const root = document.createElement('div');
-        root.id = 'm3-root';
-        root.className = config.extDarkTheme ? 'm3-dark' : 'm3-light';
-        root.style.left = config.pos.x + 'px';
-        root.style.top = config.pos.y + 'px';
-        root.innerHTML = `
-            <div id="m3-header"><span id="m3-title">Mriya Enhancer 6.0</span><button id="m3-close">✕</button></div>
-            <div id="m3-tabs">
-                <div class="m3-tab active" data-tab="main">Головна</div>
-                <div class="m3-tab" data-tab="settings">Опції</div>
-                <div class="m3-tab" data-tab="block">ЧС</div>
+    root.innerHTML = `
+        <div id="m3-header">
+            <span>Mriya Enhancer Ultimate v9.0</span>
+            <div class="window-controls">
+                <div class="win7-btn btn-min" title="Згорнути"></div>
+                <div class="win7-btn btn-close" title="Закрити"></div>
             </div>
-            <div id="m3-body"></div>
-            <div id="m3-footer"><button id="m3-apply">Зберегти та оновити</button></div>
-        `;
-        document.body.appendChild(root);
-        switchTab('main');
-        makeDraggable(root);
+        </div>
+        <div id="m3-tabs">
+            <div class="m3-tab active" data-tab="users">ЧС</div>
+            <div class="m3-tab" data-tab="css">CSS</div>
+            <div class="m3-tab" data-tab="market">Магазин</div>
+            <div class="m3-tab" data-tab="opts">Опції</div>
+            <div class="m3-tab" data-tab="about">Про мод</div>
+        </div>
+        <div id="m3-body"></div>
+        <div class="m3-footer"><button id="m3-apply">Зберегти та оновити</button></div>
+    `;
 
-        document.getElementById('m3-close').onclick = () => root.remove();
-        document.getElementById('m3-apply').onclick = () => { save(); location.reload(); };
+    document.body.appendChild(root);
+    makeDraggable(root);
 
-        root.querySelectorAll('.m3-tab').forEach(t => {
-            t.onclick = () => {
-                root.querySelectorAll('.m3-tab').forEach(r => r.classList.remove('active'));
-                t.classList.add('active');
-                switchTab(t.dataset.tab);
-            };
+    root.querySelector('.btn-close').onclick = () => root.remove();
+    root.querySelector('.btn-min').onclick = () => root.remove();
+    document.getElementById('m3-apply').onclick = () => { save(); location.reload(); };
+
+    root.querySelectorAll('.m3-tab').forEach(t => {
+        t.onclick = () => {
+            root.querySelectorAll('.m3-tab').forEach(r => r.classList.remove('active'));
+            t.classList.add('active');
+            switchTab(t.dataset.tab);
+        };
+    });
+    switchTab('users');
+}
+
+async function switchTab(tab) {
+    const body = document.getElementById('m3-body');
+    body.innerHTML = '';
+
+    if (tab === 'users') {
+        body.innerHTML = `<b>Чорний список:</b><div id="block-list" style="height:310px; overflow:auto; border:1px solid rgba(128,128,128,0.3); padding:5px; margin-top:10px;"></div>`;
+        const bl = body.querySelector('#block-list');
+        config.blockedUsers.forEach(u => {
+            const item = document.createElement('div');
+            item.style = "display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px; padding:4px; border-bottom: 1px solid rgba(128,128,128,0.1);";
+            item.innerHTML = `<span>${u}</span><button style="cursor:pointer; color:red; border:none; background:none;">❌</button>`;
+            item.querySelector('button').onclick = () => { config.blockedUsers = config.blockedUsers.filter(x => x!==u); save(); switchTab('users'); };
+            bl.appendChild(item);
         });
     }
 
-    function switchTab(tab) {
-        const body = document.getElementById('m3-body');
-        if (tab === 'main') {
-            body.innerHTML = `
-                <div class="m3-field"><label>Шрифт</label><input type="text" id="fnt" value="${config.font}" placeholder="Arial, sans-serif"></div>
-                <div class="m3-field"><label>Власний CSS</label><textarea id="css-c" rows="2"></textarea><button id="add-css">Додати</button></div>
-                <div id="css-list"></div>
-            `;
-            document.getElementById('fnt').oninput = (e) => { config.font = e.target.value; save(); };
-        } else if (tab === 'settings') {
-            body.innerHTML = `
-                <div class="m3-opt"><label><input type="checkbox" id="opt-row" ${config.rowButtons?'checked':''}> Кнопки в один ряд</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-pag" ${config.compactPagination?'checked':''}> Стиснути пагінацію (10 + ...)</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-img" ${config.hideImages?'checked':''}> Фото під спойлер</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-date" ${config.prettyDates?'checked':''}> Гарна дата</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-ava" ${config.hideAvatars?'checked':''}> Приховати аватарки</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-long" ${config.longInputs?'checked':''}> Подовжити поля вводу</label></div>
-                <hr>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-sdark" ${config.siteDarkTheme?'checked':''}> Темна тема сайту</label></div>
-                <div class="m3-opt"><label><input type="checkbox" id="opt-edark" ${config.extDarkTheme?'checked':''}> Темна тема меню</label></div>
-            `;
-            const bind = (id, key) => {
-                document.getElementById(id).onchange = (e) => { config[key] = e.target.checked; save(); };
-            };
-            bind('opt-row', 'rowButtons');
-            bind('opt-pag', 'compactPagination');
-            bind('opt-img', 'hideImages');
-            bind('opt-date', 'prettyDates');
-            bind('opt-ava', 'hideAvatars');
-            bind('opt-long', 'longInputs');
-            bind('opt-sdark', 'siteDarkTheme');
-            bind('opt-edark', 'extDarkTheme');
-
-        } else if (tab === 'block') {
-            body.innerHTML = `<label>Заблоковані користувачі:</label><div id="block-list"></div>`;
-            const blist = document.getElementById('block-list');
-            config.blockedUsers.forEach(user => {
-                const item = document.createElement('div');
-                item.className = 'm3-item';
-                item.innerHTML = `<span>${user}</span><button>✕</button>`;
-                item.querySelector('button').onclick = () => unblockUser(user);
-                blist.appendChild(item);
+    else if (tab === 'css') {
+        body.innerHTML = `<button id="add-css" style="width:100%; padding:8px; margin-bottom:10px; cursor:pointer;">+ Додати блок CSS</button><div id="css-list"></div>`;
+        const render = () => {
+            const list = body.querySelector('#css-list'); list.innerHTML = '';
+            config.cssGroups.forEach((g, idx) => {
+                const item = document.createElement('div'); item.className = 'group-item';
+                item.innerHTML = `<div style="display:flex; justify-content:space-between;"><span><input type="checkbox" ${g.active?'checked':''}> <b>${g.name}</b></span><span class="del" style="cursor:pointer; color:red;">✕</span></div><textarea style="height:60px; margin-top:5px;">${g.code}</textarea>`;
+                item.querySelector('input').onchange = (e) => { g.active = e.target.checked; save(); };
+                item.querySelector('textarea').oninput = (e) => { g.code = e.target.value; save(); };
+                item.querySelector('.del').onclick = () => { config.cssGroups.splice(idx,1); save(); render(); };
+                list.appendChild(item);
             });
-        }
+        };
+        body.querySelector('#add-css').onclick = () => { config.cssGroups.push({id:Date.now(), name:'Новий стиль', code:'', active:true}); render(); };
+        render();
     }
 
-    function makeDraggable(el) {
-        const h = document.getElementById('m3-header');
-        let x=0, y=0, nx=0, ny=0;
-        h.onmousedown = dragStart;
-        function dragStart(e) { nx = e.clientX; ny = e.clientY; document.onmousemove = dragMove; document.onmouseup = dragEnd; }
-        function dragMove(e) { x = nx - e.clientX; y = ny - e.clientY; nx = e.clientX; ny = e.clientY; el.style.top = (el.offsetTop - y) + "px"; el.style.left = (el.offsetLeft - x) + "px"; }
-        function dragEnd() { document.onmousemove = null; config.pos = { x: el.offsetLeft, y: el.offsetTop }; save(); }
+    else if (tab === 'market') {
+        body.innerHTML = 'Завантаження репозиторію GitHub...';
+        try {
+            const json = await fetchRemote(REPO_URL);
+            const themes = JSON.parse(json);
+            body.innerHTML = '';
+            themes.forEach(t => {
+                const isInstalled = config.installedThemes.some(it => it.name === t.name);
+                const item = document.createElement('div');
+                item.className = 'group-item';
+                item.style = "display:flex; justify-content:space-between; align-items:center;";
+                item.innerHTML = `<div><b>${t.name}</b><br><small>Версія: ${t.version}</small></div><button style="cursor:pointer; padding:6px 12px;">${isInstalled?'Оновити':'Встановити'}</button>`;
+                item.querySelector('button').onclick = async (e) => {
+                    e.target.innerText = '...';
+                    const css = await fetchRemote(t.css_url);
+                    config.installedThemes = config.installedThemes.filter(x => x.name !== t.name);
+                    config.installedThemes.push({ id: t.id || Date.now().toString(), name: t.name, css: css });
+                    save(); alert(`Тему ${t.name} встановлено!`); switchTab('market');
+                };
+                body.appendChild(item);
+            });
+        } catch (e) { body.innerHTML = '<b style="color:red">Помилка завантаження.</b>'; }
     }
 
-    GM_addStyle(`
-        #m3-root { position: fixed; width: 340px; z-index: 1000000; border-radius: 24px; overflow: hidden; font-family: system-ui, -apple-system; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
-        .m3-dark { background: ${M3.surface}; color: ${M3.onSurface}; border: 1px solid #444; }
-        .m3-light { background: ${M3.surfaceLight}; color: ${M3.onSurfaceLight}; border: 1px solid #ccc; }
-        #m3-header { padding: 16px; background: rgba(0,0,0,0.1); cursor: move; display: flex; justify-content: space-between; align-items: center; }
-        #m3-title { font-weight: bold; color: ${M3.primary}; }
-        #m3-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 18px; }
-        #m3-tabs { display: flex; background: rgba(0,0,0,0.2); }
-        .m3-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; opacity: 0.6; font-size: 13px; }
-        .m3-tab.active { opacity: 1; border-bottom: 3px solid ${M3.primary}; font-weight: bold; }
-        #m3-body { padding: 16px; max-height: 400px; overflow-y: auto; }
-        .m3-field, .m3-opt { margin-bottom: 12px; }
-        .m3-opt label { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
-        input[type="text"], textarea { width: 100%; border-radius: 8px; border: 1px solid #555; background: rgba(0,0,0,0.2); color: inherit; padding: 8px; box-sizing: border-box; }
-        .m3-item { display: flex; justify-content: space-between; background: rgba(0,0,0,0.1); padding: 8px; margin-top: 5px; border-radius: 8px; align-items: center; }
-        .m3-item button { background: none; border: none; color: ${M3.error}; cursor: pointer; font-weight: bold; }
-        #m3-apply { width: 100%; background: ${M3.primary}; color: #000; padding: 14px; border: none; font-weight: bold; cursor: pointer; }
-        hr { border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; }
-    `);
+    else if (tab === 'opts') {
+        body.innerHTML = `
+            <div class="m3-opt"><label>Стиль UI:</label><select id="th-sel"><option value="aero" ${config.theme==='aero'?'selected':''}>Aero</option><option value="material" ${config.theme==='material'?'selected':''}>Material</option><option value="liquid" ${config.theme==='liquid'?'selected':''}>Liquid</option></select></div>
+            <div class="m3-opt"><label>Тема магазину:</label><select id="cust-sel"><option value="">(Не вибрано)</option>${config.installedThemes.map(t => `<option value="${t.id}" ${config.customThemeId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div>
+            <hr style="opacity:0.2">
+            <div class="m3-opt"><label>Шрифт:</label><input type="text" id="fnt-in" style="width:160px" value="${config.font}"></div>
+            <div class="m3-opt"><label>Темний режим сайту</label><input type="checkbox" id="o-sd" ${config.siteDarkTheme?'checked':''}></div>
+            <div class="m3-opt"><label>Кнопки в ряд</label><input type="checkbox" id="o-rb" ${config.rowButtons?'checked':''}></div>
+            <div class="m3-opt"><label>Приховати аватарки</label><input type="checkbox" id="o-ha" ${config.hideAvatars?'checked':''}></div>
+            <div class="m3-opt"><label>Зображення спойлером</label><input type="checkbox" id="o-hi" ${config.hideImages?'checked':''}></div>
+            <div class="m3-opt"><label>Гарні дати</label><input type="checkbox" id="o-pd" ${config.prettyDates?'checked':''}></div>
+            <div class="m3-opt"><label>Компактна пагінація</label><input type="checkbox" id="o-cp" ${config.compactPagination?'checked':''}></div>
+            <div class="m3-opt"><label>Велике поле вводу</label><input type="checkbox" id="o-li" ${config.longInputs?'checked':''}></div>
+        `;
+        const bind = (id, key) => { body.querySelector('#'+id).onchange = (e) => { config[key] = e.target.checked; save(); }; };
+        bind('o-sd','siteDarkTheme'); bind('o-rb','rowButtons'); bind('o-ha','hideAvatars');
+        bind('o-hi','hideImages'); bind('o-pd','prettyDates'); bind('o-cp','compactPagination'); bind('o-li','longInputs');
+        body.querySelector('#th-sel').onchange = (e) => { config.theme = e.target.value; save(); };
+        body.querySelector('#cust-sel').onchange = (e) => { config.customThemeId = e.target.value || null; save(); };
+        body.querySelector('#fnt-in').oninput = (e) => { config.font = e.target.value; save(); };
+    }
 
-    GM_registerMenuCommand("⚙️ Mriya Enhancer", showUI);
+    else if (tab === 'about') {
+        body.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <center><h3>Mriya Enhancer Ultimate</h3><p>Версія 9.0</p></center>
 
-    applyEverything();
+                <a href="https://github.com/QLegacy/mriyaenchancer" target="_blank" class="about-item">
+                    <img src="https://raw.githubusercontent.com/QLegacy/mriyaenchancer/refs/heads/main/files/github.png" class="img-inv">
+                    <span>GitHub репозиторій мода</span>
+                </a>
+
+                <a href="https://t.me/quadlegacybio" target="_blank" class="about-item">
+                    <img src="https://raw.githubusercontent.com/QLegacy/mriyaenchancer/refs/heads/main/files/tg.png">
+                    <span>Telegram автора (QuadLegacy)</span>
+                </a>
+
+                <a href="https://t.me/tg_mriya" target="_blank" class="about-item">
+                    <img src="https://raw.githubusercontent.com/QLegacy/mriyaenchancer/refs/heads/main/files/tg.png">
+                    <span>Mriya Official Telegram</span>
+                </a>
+
+                <a href="http://mriya.cc" target="_blank" class="about-item">
+                    <img src="https://raw.githubusercontent.com/QLegacy/mriyaenchancer/refs/heads/main/files/mriya.png" class="img-inv">
+                    <span>Сайт Mriya.cc</span>
+                </a>
+
+                <p style="font-size:11px; opacity:0.6; text-align:center; margin-top:10px;">Дякуємо, що користуєтесь нашим енчайсером!</p>
+            </div>
+        `;
+    }
+}
+
+// --- 6. ЗАСТОСУВАННЯ ТА ЗАПУСК ---
+function applyEverything() {
+    let css = config.font ? `* { font-family: "${config.font}" !important; }\n` : '';
+
+    if (config.siteDarkTheme) {
+        css += `
+            body, .site-wrap, .container { background: #000 !important; color: #ccc !important; }
+            .post, .comment, .card { background: #0a0a0a !important; border: 1px solid #222 !important; color: #eee !important; }
+            input, textarea, select { background: #111 !important; color: #fff !important; border: 1px solid #333 !important; }
+            a { color: #5c97ff !important; }
+            button, #publishBtn, #emoji-button, .page-btn { background: #222 !important; color: #fff !important; border: 1px solid #444 !important; padding: 5px 12px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+            button:hover, #publishBtn:hover { background: #333 !important; border-color: #666 !important; }
+        `;
+    }
+
+    if (config.hideAvatars) css += `.avatar, .user-avatar { display: none !important; }`;
+    if (config.longInputs) css += `#contentField { min-height: 200px !important; }`;
+    if (config.hideImages) css += `.post-content img { max-height: 50px; filter: blur(10px); cursor: pointer; transition: 0.3s; } .post-content img:hover { max-height: none; filter: none; }`;
+
+    if (config.customThemeId) {
+        const t = config.installedThemes.find(x => x.id === config.customThemeId);
+        if (t) css += `\n/* Store Theme: ${t.name} */\n ${t.css}`;
+    }
+
+    config.cssGroups.forEach(g => { if(g.active) css += `\n/* ${g.name} */\n ${g.code}`; });
+
+    GM_addStyle(css);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (config.rowButtons) wrapButtons();
+        if (config.compactPagination) handlePagination();
+        if (config.prettyDates) applyPrettyDates();
+
+        document.querySelectorAll('.post').forEach(post => {
+            const author = post.querySelector('b a')?.innerText.trim();
+            if (author && config.blockedUsers.includes(author)) post.style.display = 'none';
+        });
+    });
+}
+
+GM_registerMenuCommand("⚙️ Налаштування Mriya", showUI);
+applyEverything();
+
 })();
