@@ -1,5 +1,20 @@
-Project is closed
+Another enchancer for Mriya social network.
 
-t.me/quadlegacybio & t.me/qlegacy_agent_000
 
-https://t.me/quadlegacybio/97
+
+
+
+
+**DONT use JS tab if you get asked for this. Administration of Mriya site WILL NOT ask you to use scripts.**
+
+
+
+
+
+To use it download tampermonkey extension, next open mriya.user.js and click "RAW", and install extension.
+
+
+
+
+
+To use this extension on android / IOS: Download Kiwi browser OR Firrfox, and get extension from extension store.
