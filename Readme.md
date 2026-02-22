@@ -18,3 +18,13 @@ To use it download tampermonkey extension, next open mriya.user.js and click "RA
 
 
 To use this extension on android / IOS: Download Kiwi browser OR Firrfox, and get extension from extension store.
+
+
+
+
+
+
+Mriya: mriya.cc, mirya.xo.je, mriya.ct.ws
+
+
+lol
