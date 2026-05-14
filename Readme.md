@@ -13,6 +13,7 @@ Another enchancer for Mriya social network.
 
 To use it download tampermonkey extension, next open mriya.user.js and click "RAW", and install extension.
 
+OR https://github.com/QLegacy/mriyaenchancer/raw/refs/heads/main/mriya.user.js
 
 
 
