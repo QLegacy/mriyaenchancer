@@ -25,7 +25,7 @@ To use this extension on android / IOS: Download Kiwi browser OR Firrfox, and ge
 
 
 
-Mriya: mriya.cc, mirya.xo.je, mriya.ct.ws
+Mriya: mriya.cc, mirya.xo.je, mriya.ct.ws, mriya.ink
 
 
 lol
