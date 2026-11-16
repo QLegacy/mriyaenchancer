@@ -1,4 +1,6 @@
-Another enchancer for Mriya social network.
+Another enchancer for old Mriya social network.
+
+upd: on reworked Mriya this won't work!!!
 
 
 
